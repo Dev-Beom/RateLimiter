@@ -1,22 +1,17 @@
 import kotlin.math.min
 
-class TokenBucket(
-    maxRequestPerSec: Int,
-    private var tokens: Int,
-    private var capacity: Int,
+class TokenBucket(private var tokens: Int) : RateLimiter(tokens) {
+    private val capacity: Int = tokens
     private var lastRefillTime: Long
-) : RateLimiter(maxRequestPerSec) {
-    constructor(maxRequestPerSec: Int) : this(
-        maxRequestPerSec,
-        maxRequestPerSec,
-        maxRequestPerSec,
-        scaledTime()
-    )
+
+    init {
+        lastRefillTime = scaledTime()
+    }
 
     override fun allow(): Boolean {
         synchronized(this) {
             refillTokens()
-            if (this.tokens == 0) {
+            if (tokens == 0) {
                 return false
             }
             tokens--
@@ -26,17 +21,15 @@ class TokenBucket(
 
     private fun refillTokens() {
         val now = scaledTime()
-        if (now > this.lastRefillTime) {
-            val elapsedTime = (now - lastRefillTime)
-            val refill = (elapsedTime * maxRequestPerSec).toInt()
+        if (now > lastRefillTime) {
+            val elapsedTime = (now - lastRefillTime).toDouble()
+            val refill = (elapsedTime * tokens).toInt()
             tokens = min(tokens + refill, capacity)
             lastRefillTime = now
         }
     }
 
-    companion object {
-        private fun scaledTime(): Long {
-            return System.currentTimeMillis() / 1000
-        }
+    private fun scaledTime(): Long {
+        return System.currentTimeMillis() / 1000
     }
 }
